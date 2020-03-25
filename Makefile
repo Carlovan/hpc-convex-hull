@@ -29,12 +29,17 @@
 ## make cuda    compila la versione CUDA
 ## make images  usa ./convex-hull per creare le immagini di tutti gli inviluppi
 
-EXE_OMP:=$(basename $(wildcard omp-*.c))
-EXE_MPI:=$(basename $(wildcard mpi-*.c))
-EXE_CUDA:=$(basename $(wildcard cuda-*.cu))
-EXE_SERIAL:=convex-hull
-DATAFILES:=ace.in box1k.in box10k.in box100k.in box1M.in circ1k.in circ10k.in circ100k.in gaus100k.in gaus1M.in
-IMAGES:=$(patsubst %.in, %.png, $(DATAFILES))
+SRC_DIR:=src/
+OUT_DIR:=build/
+INPUTS_DIR:=inputs/
+IMAGES_DIR:=images/
+
+EXE_OMP:=$(addprefix ${OUT_DIR}, $(basename $(notdir $(wildcard ${SRC_DIR}omp-*.c))))
+EXE_MPI:=$(addprefix ${OUT_DIR}, $(basename $(notdir $(wildcard ${SRC_DIR}mpi-*.c))))
+EXE_CUDA:=$(addprefix ${OUT_DIR}, $(basename $(notdir $(wildcard ${SRC_DIR}cuda-*.cu))))
+EXE_SERIAL:=$(addprefix ${OUT_DIR}, convex-hull)
+DATAFILES:=$(addprefix ${INPUTS_DIR}, ace.in box1k.in box10k.in box100k.in box1M.in circ1k.in circ10k.in circ100k.in gaus100k.in gaus1M.in)
+IMAGES:=$(patsubst ${INPUTS_DIR}%.in, ${IMAGES_DIR}%.png, $(DATAFILES))
 EXE:=$(EXE_OMP) $(EXE_MPI) $(EXE_SERIAL) $(EXE_CUDA)
 CFLAGS+=-std=c99 -Wall -Wpedantic -O2 -D_XOPEN_SOURCE=600
 LDLIBS+=-lm
@@ -46,12 +51,16 @@ NVLDLIBS+=-lm
 
 ALL: $(EXE) datafiles
 
-datafiles: $(DATAFILES)
+datafiles: $(INPUTS_DIR) $(DATAFILES)
 
-images: $(IMAGES)
+images: $(IMAGES_DIR) $(IMAGES)
 
 % : %.cu
 	$(NVCC) $(NVCFLAGS) $< -o $@ $(NVLDLIBS)
+
+$(OUT_DIR)%: $(SRC_DIR)%.c
+	\mkdir -p $(OUT_DIR)
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $< -o $@ $(LOADLIBES) $(LDLIBS)
 
 $(EXE_OMP): CFLAGS+=-fopenmp
 $(EXE_OMP): LDLIBS+=-lgomp
@@ -62,35 +71,39 @@ mpi: $(EXE_MPI)
 
 cuda: $(EXE_CUDA)
 
-box1k.in:
+$(INPUTS_DIR)box1k.in:
 	rbox 1000 D2 > $@
 
-box10k.in:
+$(INPUTS_DIR)box10k.in:
 	rbox 10000 D2 > $@
 
-box100k.in:
+$(INPUTS_DIR)box100k.in:
 	rbox 100000 D2 > $@
 
-box1M.in:
+$(INPUTS_DIR)box1M.in:
 	rbox 1000000 D2 > $@
 
-box10M.in:
+$(INPUTS_DIR)box10M.in:
 	rbox 10000000 D2 > $@
 
-circ1k.in:
+$(INPUTS_DIR)circ1k.in:
 	rbox s 1000 D2 > $@
 
-circ10k.in:
+$(INPUTS_DIR)circ10k.in:
 	rbox s 10000 D2 > $@
 
-circ100k.in:
+$(INPUTS_DIR)circ100k.in:
 	rbox s 100000 D2 > $@
 
-%.hull: %.in convex-hull
-	./convex-hull < $< > $@
+%.hull: %.in $(EXE_SERIAL)
+	echo create $@
+	./$(EXE_SERIAL) < $< > $@
 
-%.png: %.in %.hull
+$(IMAGES_DIR)%.png: $(INPUTS_DIR)%.in $(INPUTS_DIR)%.hull
 	gnuplot -c plot-hull.gp $+ $@
 
+%/:
+	mkdir $@
+
 clean:
-	\rm -f $(EXE) *.o *~ $(IMAGES) *.hull
+	\rm -rf $(OUT_DIR) *.o *~ $(IMAGES_DIR) $(INPUTS_DIR)*.hull
