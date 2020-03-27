@@ -53,164 +53,10 @@
 #include "hpc.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
-#include <math.h>
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
-
-/* A single point */
-typedef struct {
-    double x, y;
-} point_t;
-
-/* An array of n points */
-typedef struct {
-    int n;      /* number of points     */
-    point_t *p; /* array of points      */
-} points_t;
-
-enum {
-    LEFT = -1,
-    COLLINEAR,
-    RIGHT
-};
-
-/**
- * Read input from file f, and store the set of points into the
- * structure pset.
- */
-void read_input( FILE *f, points_t *pset )
-{
-    char buf[1024];
-    int i, dim, npoints;
-    point_t *points;
-    
-    if ( 1 != fscanf(f, "%d", &dim) ) {
-        fprintf(stderr, "FATAL: can not read dimension\n");
-        exit(EXIT_FAILURE);
-    }
-    if (dim != 2) {
-        fprintf(stderr, "FATAL: This program supports dimension 2 only (got dimension %d instead)\n", dim);
-        exit(EXIT_FAILURE);
-    }
-    if (NULL == fgets(buf, sizeof(buf), f)) { /* ignore rest of the line */
-        fprintf(stderr, "FATAL: failed to read rest of first line\n");
-        exit(EXIT_FAILURE);
-    }
-    if (1 != fscanf(f, "%d", &npoints)) {
-        fprintf(stderr, "FATAL: can not read number of points\n");
-        exit(EXIT_FAILURE);
-    }
-    assert(npoints > 2);
-    points = (point_t*)malloc( npoints * sizeof(*points) );
-    assert(points);
-    for (i=0; i<npoints; i++) {
-        if (2 != fscanf(f, "%lf %lf", &(points[i].x), &(points[i].y))) {
-            fprintf(stderr, "FATAL: failed to get coordinates of point %d\n", i);
-            exit(EXIT_FAILURE);
-        }
-    }
-    pset->n = npoints;
-    pset->p = points;
-}
-
-/**
- * Free the memory allocated by structure pset.
- */
-void free_pointset( points_t *pset )
-{
-    pset->n = 0;
-    free(pset->p);
-    pset->p = NULL;
-}
-
-/**
- * Dump the convex hull to file f. The first line is the number of
- * dimensione (always 2); the second line is the number of vertices of
- * the hull PLUS ONE; the next (n+1) lines are the vertices of the
- * hull, in clockwise order. The first point is repeated twice, in
- * order to be able to plot the result using gnuplot as a closed
- * polygon
- */
-void write_hull( FILE *f, const points_t *hull )
-{
-    int i;
-    fprintf(f, "%d\n%d\n", 2, hull->n + 1);
-    for (i=0; i<hull->n; i++) {
-        fprintf(f, "%f %f\n", hull->p[i].x, hull->p[i].y);
-    }
-    /* write again the coordinates of the first point */
-    fprintf(f, "%f %f\n", hull->p[0].x, hull->p[0].y);    
-}
-
-/**
- * Return LEFT, RIGHT or COLLINEAR depending on the shape
- * of the vectors p0p1 and p1p2
- *
- * LEFT            RIGHT           COLLINEAR
- * 
- *  p2              p1----p2            p2
- *    \            /                   /
- *     \          /                   /
- *      p1       p0                  p1
- *     /                            /
- *    /                            /
- *  p0                            p0
- *
- * See Cormen, Leiserson, Rivest and Stein, "Introduction to Algorithms",
- * 3rd ed., MIT Press, 2009, Section 33.1 "Line-Segment properties"
- */
-int turn(const point_t p0, const point_t p1, const point_t p2)
-{
-    /*
-      This function returns the correct result (COLLINEAR) also in the
-      following cases:
-      
-      - p0==p1==p2
-      - p0==p1
-      - p1==p2
-    */
-    const double cross = (p1.x-p0.x)*(p2.y-p0.y) - (p2.x-p0.x)*(p1.y-p0.y);
-    if (cross > 0.0) {
-        return LEFT;
-    } else {
-        if (cross < 0.0) {
-            return RIGHT;
-        } else {
-            return COLLINEAR;
-        }
-    }
-}
-
-/**
- * Get the clockwise angle between the line p0p1 and the vector p1p2 
- *
- *         .
- *        . 
- *       .--+ (this angle) 
- *      .   |    
- *     .    V
- *    p1--------------p2
- *    /
- *   /
- *  /
- * p0
- *
- * The function is not used in this program, but it might be useful.
- */
-double cw_angle(const point_t p0, const point_t p1, const point_t p2)
-{
-    const double x1 = p2.x - p1.x;
-    const double y1 = p2.y - p1.y;    
-    const double x2 = p1.x - p0.x;
-    const double y2 = p1.y - p0.y;
-    const double dot = x1*x2 + y1*y2;
-    const double det = x1*y2 - y1*x2;
-    const double result = atan2(det, dot);
-    return (result >= 0 ? result : 2*M_PI + result);
-}
+#include "ioutils.h"
+#include "data_types.h"
+#include "mathutils.h"
 
 /**
  * Compute the convex hull of all points in pset using the "Gift
@@ -263,46 +109,6 @@ void convex_hull(const points_t *pset, points_t *hull)
     assert(hull->p); 
 }
 
-/**
- * Compute the area ("volume", in qconvex terminoloty) of a convex
- * polygon whose vertices are stored in pset using Gauss' area formula
- * (also known as the "shoelace formula"). See:
- *
- * https://en.wikipedia.org/wiki/Shoelace_formula
- *
- * This function does not need to be parallelized.
- */
-double hull_volume( const points_t *hull )
-{
-    const int n = hull->n;
-    const point_t *p = hull->p;
-    double sum = 0.0;
-    int i;
-    for (i=0; i<n-1; i++) {
-        sum += ( p[i].x * p[i+1].y - p[i+1].x * p[i].y );
-    }
-    sum += p[n-1].x*p[0].y - p[0].x*p[n-1].y;
-    return 0.5*fabs(sum);
-}
-
-/**
- * Compute the length of the perimeter ("facet area", in qconvex
- * terminoloty) of a convex polygon whose vertices are stored in pset.
- * This function does not need to be parallelized.
- */
-double hull_facet_area( const points_t *hull )
-{
-    const int n = hull->n;
-    const point_t *p = hull->p;
-    double length = 0.0;
-    int i;
-    for (i=0; i<n-1; i++) {
-        length += hypot( p[i].x - p[i+1].x, p[i].y - p[i+1].y );
-    }
-    /* Add the n-th side connecting point n-1 to point 0 */
-    length += hypot( p[n-1].x - p[0].x, p[n-1].y - p[0].y );
-    return length;
-}
 
 int main( void )
 {
@@ -313,11 +119,7 @@ int main( void )
     tstart = hpc_gettime();
     convex_hull(&pset, &hull);
     elapsed = hpc_gettime() - tstart;
-    fprintf(stderr, "\nConvex hull of %d points in 2-d:\n\n", pset.n);
-    fprintf(stderr, "  Number of vertices: %d\n", hull.n);
-    fprintf(stderr, "  Total facet area: %f\n", hull_facet_area(&hull));
-    fprintf(stderr, "  Total volume: %f\n\n", hull_volume(&hull));
-    fprintf(stderr, "Elapsed time: %f\n\n", elapsed);
+    print_info(pset, hull, elapsed);
     write_hull(stdout, &hull);
     free_pointset(&pset);
     free_pointset(&hull);
