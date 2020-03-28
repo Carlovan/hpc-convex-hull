@@ -64,7 +64,7 @@
  */
 inline bool better_point(const point_t prev, const point_t cur, const point_t a, const point_t b) {
     int t = turn(cur, a, b);
-    return t == LEFT || (t == COLLINEAR && fcmp(cw_angle(cur, a, b), 0.) == 0);
+    return t == LEFT || (t == COLLINEAR && consecutive_dot_prod(cur, a, b) > 0);
 }
 
 typedef struct {
