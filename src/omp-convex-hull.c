@@ -63,33 +63,8 @@
  * Returns true if b is better than a
  */
 inline bool better_point(const point_t prev, const point_t cur, const point_t a, const point_t b) {
-    const int turnA = turn(prev, cur, a);
-    if (turnA == LEFT) {
-        return true;
-    }
-    const int turnB = turn(prev, cur, b);
-    if (turnB == LEFT) {
-        return false;
-    }
-
-    int turnBCA = turn(b, cur, a);
-    if (turnBCA == RIGHT) {
-        return false;
-    }
-    if (turnBCA == LEFT) {
-        return true;
-    }
-
-    // B,cur,A are collinear
-    double dotA = consecutive_dot_prod(prev, cur, a);
-    if (dotA < 0) {
-        return true;
-    }
-    double dotB = consecutive_dot_prod(prev, cur, b);
-    if (dotB < 0) {
-        return false;
-    }
-    return dotA < dotB; // B is further
+    int t = turn(cur, a, b);
+    return t == LEFT || (t == COLLINEAR && fcmp(cw_angle(cur, a, b), 0.) == 0);
 }
 
 typedef struct {
