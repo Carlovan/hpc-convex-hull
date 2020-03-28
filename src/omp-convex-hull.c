@@ -146,7 +146,7 @@ void convex_hull(const points_t *pset, points_t *hull)
         
         /* Search for the next vertex */
         reduction_value_t next = {&p[(cur + 1) % n], &prev, &p[cur]};
-        #pragma omp parallel for default(none) reduction(best_point:next) shared(p,cur,prev,n)
+        #pragma omp parallel for reduction(best_point:next)
         for (int j=0; j<n; j++) {
             if (j != cur && &p[j] != next.point && better_point(prev, p[cur], *next.point, p[j])) {
                 next.point = &p[j];
