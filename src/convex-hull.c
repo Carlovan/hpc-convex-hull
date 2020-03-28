@@ -4,8 +4,8 @@
  *
  * Compute the convex hull of a set of points in 2D
  *
- * Copyright (C) 2019 Moreno Marzolla <moreno.marzolla(at)unibo.it>
- * Last updated on 2019-11-25
+ * Copyright (C) 2020 Giulio Carlassare <giulio.carlassare(at)studio.unibo.it>
+ * Last updated on 2020-03-28
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -96,7 +96,8 @@ void convex_hull(const points_t *pset, points_t *hull)
         /* Search for the next vertex */
         next = (cur + 1) % n;
         for (j=0; j<n; j++) {
-            if (LEFT == turn(p[cur], p[next], p[j])) {
+            int t = turn(p[cur], p[next], p[j]);
+            if (t == LEFT || (t == COLLINEAR && fcmp(cw_angle(p[cur], p[next], p[j]), 0.) == 0)) {
                 next = j;
             }
         }
