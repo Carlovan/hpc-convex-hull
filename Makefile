@@ -41,7 +41,7 @@ EXE_SERIAL:=$(addprefix ${OUT_DIR}, convex-hull)
 DATAFILES:=$(addprefix ${INPUTS_DIR}, ace.in box1k.in box10k.in box100k.in box1M.in circ1k.in circ10k.in circ100k.in gaus100k.in gaus1M.in)
 IMAGES:=$(patsubst ${INPUTS_DIR}%.in, ${IMAGES_DIR}%.png, $(DATAFILES))
 EXE:=$(EXE_OMP) $(EXE_MPI) $(EXE_SERIAL) $(EXE_CUDA)
-CFLAGS+=-std=c99 -Wall -Wpedantic -O2 -D_XOPEN_SOURCE=600
+CFLAGS+=-std=c99 -Wall -Wpedantic -O2 -D_XOPEN_SOURCE=600 -g
 LDLIBS+=-lm
 NVCC:=nvcc
 NVCFLAGS+=-Wno-deprecated-gpu-targets
