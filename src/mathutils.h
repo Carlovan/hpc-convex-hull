@@ -31,8 +31,7 @@ enum {
  * See Cormen, Leiserson, Rivest and Stein, "Introduction to Algorithms",
  * 3rd ed., MIT Press, 2009, Section 33.1 "Line-Segment properties"
  */
-int turn(const point_t p0, const point_t p1, const point_t p2)
-{
+int turn(const point_t p0, const point_t p1, const point_t p2) {
     /*
       This function returns the correct result (COLLINEAR) also in the
       following cases:
@@ -54,6 +53,17 @@ int turn(const point_t p0, const point_t p1, const point_t p2)
 }
 
 /**
+ * Returns the dot product between the vectors p0--p1 and p1--p2
+ */
+double consecutive_dot_prod(const point_t p0, const point_t p1, const point_t p2) {
+    const double x1 = p2.x - p1.x;
+    const double y1 = p2.y - p1.y;
+    const double x2 = p1.x - p0.x;
+    const double y2 = p1.y - p0.y;
+    return x1*x2 + y1*y2;
+}
+
+/**
  * Get the clockwise angle between the line p0p1 and the vector p1p2 
  *
  *         .
@@ -67,12 +77,11 @@ int turn(const point_t p0, const point_t p1, const point_t p2)
  *  /
  * p0
  *
- * The function is not used in this program, but it might be useful.
  */
 double cw_angle(const point_t p0, const point_t p1, const point_t p2)
 {
     const double x1 = p2.x - p1.x;
-    const double y1 = p2.y - p1.y;    
+    const double y1 = p2.y - p1.y;
     const double x2 = p1.x - p0.x;
     const double y2 = p1.y - p0.y;
     const double dot = x1*x2 + y1*y2;
@@ -86,17 +95,17 @@ double cw_angle(const point_t p0, const point_t p1, const point_t p2)
  * Returns -1 if a < b, 0 if a == b and 1 if a > b.
  */
 int fcmp(double a, double b) {
-	const double t = 1e-6;
-	if (fabs(a-b) < t) {
-		return 0;
-	}
-	return (a > b) * 2 - 1;
+    const double t = 1e-10;
+    if (fabs(a-b) < t) {
+        return 0;
+    }
+    return (a > b) * 2 - 1;
 }
 
 double squared_dist(point_t p1, point_t p2) {
-	double dx = p1.x - p2.x;
-	double dy = p1.y - p2.y;
-	return (dx*dx) + (dy*dy);
+    double dx = p1.x - p2.x;
+    double dy = p1.y - p2.y;
+    return (dx*dx) + (dy*dy);
 }
 
 #endif
