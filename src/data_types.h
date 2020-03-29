@@ -2,6 +2,7 @@
 #define _DATA_TYPES_H_
 
 #include <stdlib.h>
+#include <stdbool.h>
 
 /* A single point */
 typedef struct {
@@ -13,6 +14,10 @@ typedef struct {
     int n;      /* number of points     */
     point_t *p; /* array of points      */
 } points_t;
+
+bool point_equals(const point_t a, const point_t b) {
+	return a.x == b.x && a.y == b.y;
+}
 
 /**
  * Free the memory allocated by structure pset.

@@ -59,23 +59,26 @@
 #include "data_types.h"
 #include "mathutils.h"
 
+point_t current_point; // Used for reduction; not very cool but maybe faster than keeping a struct of pointers
+
 /**
  * Returns true if b is better than a
  */
-inline bool better_point(const point_t prev, const point_t cur, const point_t a, const point_t b) {
-    int t = turn(cur, a, b);
-    return t == LEFT || (t == COLLINEAR && consecutive_dot_prod(cur, a, b) > 0);
+inline bool better_point(const point_t a, const point_t b) {
+	if (point_equals(a, b) || point_equals(current_point, a) || point_equals(current_point, b)) {
+		return false;
+	}
+    int t = turn(current_point, a, b);
+    return t == LEFT || (t == COLLINEAR && consecutive_dot_prod(current_point, a, b) > 0);
 }
 
 typedef struct {
     const point_t *point;
-    const point_t * const prev;
     const point_t * const cur;
 } reduction_value_t;
 
-#pragma omp declare reduction ( best_point : reduction_value_t : \
-        omp_out.point = omp_out.point != omp_in.point && omp_in.point != omp_out.cur && better_point(*omp_out.prev, *omp_out.cur, *omp_out.point, *omp_in.point) \
-            ? omp_in.point : omp_out.point )\
+#pragma omp declare reduction ( best_point : const point_t* : \
+        omp_out = better_point(*omp_out, *omp_in) ? omp_in : omp_out )\
             initializer ( omp_priv = omp_orig )
 
 /**
@@ -83,8 +86,7 @@ typedef struct {
  * Wrapping" algorithm. The vertices are stored in the hull data
  * structure, that does not need to be initialized by the caller.
  */
-void convex_hull(const points_t *pset, points_t *hull)
-{
+void convex_hull(const points_t *pset, points_t *hull) {
     const int n = pset->n;
     const point_t *p = pset->p;
 
@@ -110,24 +112,17 @@ void convex_hull(const points_t *pset, points_t *hull)
         assert(hull->n < n);
         hull->p[hull->n] = p[cur];
         hull->n++;
-
-        point_t prev;
-        if (hull->n == 1) {
-            prev = hull->p[0];
-            prev.y = -1e9;
-        } else {
-            prev = hull->p[hull->n-2];
-        }
         
         /* Search for the next vertex */
-        reduction_value_t next = {&p[(cur + 1) % n], &prev, &p[cur]};
+		current_point = p[cur];
+		const point_t *next = &p[(cur + 1) % n];
         #pragma omp parallel for reduction(best_point:next)
         for (int j=0; j<n; j++) {
-            if (j != cur && &p[j] != next.point && better_point(prev, p[cur], *next.point, p[j])) {
-                next.point = &p[j];
+            if (better_point(*next, p[j])) {
+                next = &p[j];
             }
         }
-        int nextI = next.point - p;
+        int nextI = next - p;
         assert(cur != nextI);
         cur = nextI;
     } while (cur != leftmost);
@@ -137,9 +132,7 @@ void convex_hull(const points_t *pset, points_t *hull)
     assert(hull->p); 
 }
 
-
-int main( void )
-{
+int main( void ) {
     points_t pset, hull;
     double tstart, elapsed;
     
