@@ -54,7 +54,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
-
 #include "ioutils.h"
 #include "data_types.h"
 #include "mathutils.h"
@@ -62,19 +61,18 @@
 /**
  * Returns true if b is better than a
  */
-inline bool better_point(const point_t prev, const point_t cur, const point_t a, const point_t b) {
+inline bool better_point(const point_t cur, const point_t a, const point_t b) {
     int t = turn(cur, a, b);
     return t == LEFT || (t == COLLINEAR && consecutive_dot_prod(cur, a, b) > 0);
 }
 
 typedef struct {
     const point_t *point;
-    const point_t * const prev;
     const point_t * const cur;
 } reduction_value_t;
 
 #pragma omp declare reduction ( best_point : reduction_value_t : \
-        omp_out.point = omp_out.point != omp_in.point && omp_in.point != omp_out.cur && better_point(*omp_out.prev, *omp_out.cur, *omp_out.point, *omp_in.point) \
+        omp_out.point = omp_out.point != omp_in.point && omp_in.point != omp_out.cur && better_point(*omp_out.cur, *omp_out.point, *omp_in.point) \
             ? omp_in.point : omp_out.point )\
             initializer ( omp_priv = omp_orig )
 
@@ -110,20 +108,12 @@ void convex_hull(const points_t *pset, points_t *hull)
         assert(hull->n < n);
         hull->p[hull->n] = p[cur];
         hull->n++;
-
-        point_t prev;
-        if (hull->n == 1) {
-            prev = hull->p[0];
-            prev.y = -1e9;
-        } else {
-            prev = hull->p[hull->n-2];
-        }
         
         /* Search for the next vertex */
-        reduction_value_t next = {&p[(cur + 1) % n], &prev, &p[cur]};
+        reduction_value_t next = {&p[(cur + 1) % n], &p[cur]};
         #pragma omp parallel for reduction(best_point:next)
         for (int j=0; j<n; j++) {
-            if (j != cur && &p[j] != next.point && better_point(prev, p[cur], *next.point, p[j])) {
+            if (j != cur && &p[j] != next.point && better_point(p[cur], *next.point, p[j])) {
                 next.point = &p[j];
             }
         }
