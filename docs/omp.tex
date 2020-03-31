@@ -1,0 +1,7 @@
+\section{Implementazioni OpenMP}
+Analizzando il funzionamento dell'algoritmo si può dire che ad ogni iterazione viene aggiunto all'\emph{hull} il punto più esterno rispetto all'ultimo inserito $P_l$;
+$P_a$ è più esterno di $P_b$ se la spezzata $P_lP_aP_b$ è orientata in senso orario.
+
+Tornando nel mondo parallelo è possibile eseguire questa operazione con il \textbf{pattern reduction}, per il quale OpenMP offre una direttiva dedicata.
+
+Di seguito sono riportati i tempi parallelizzando la ricerca del prossimo punto $P_next$ usando la direttiva \texttt{reduce} con una operatore personalizzato.

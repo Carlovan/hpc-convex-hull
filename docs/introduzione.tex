@@ -1,0 +1,7 @@
+\section{Introduzione}
+In questa relazione si analizzano alcune possibilità di implementazione parallela dell'algoritmo \textbf{Gift Wrapping}\footnote{\url{https://en.wikipedia.org/wiki/Gift_wrapping_algorithm}}.
+È stato scelto di realizzarne una versione usando \textbf{OpenMP} e una usando \textbf{MPI}.
+
+Per poter facilmente confrontare il risultato delle diverse soluzioni, ogni implementazione trova il \emph{convex hull} con il minor numero di punti;
+la versione seriale è stata quindi leggermente modificata per rimuovere dall'\emph{hull} punti collineari consecutivi\footnote{Questa piccola modifica ha comportanto un inaspettato aumento della velocità di esecuzione, dovuto probabilmente ad ottimizzazioni messe in atto dal compilatore o al verificarsi di qualche fortunata condizione}.
+ 

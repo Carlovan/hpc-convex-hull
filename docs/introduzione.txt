@@ -1,3 +1,0 @@
-La soluzione seriale del problema è stata leggermente modificata in modo che l'hull risultante sia sempre quello con il minor numero di punti possibile;
-in questo modo è più semplice confrontare il risultato di diverse soluzione per verificarne la correttezza.
-Questa piccola modifica ha comportanto un inaspettato aumento della velocità della soluzione seriale, dovuto probabilmente ad ottimizzazioni messe in atto dal compilatore.

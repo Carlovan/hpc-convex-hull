@@ -1,3 +1,9 @@
 build/**
 images/**
 **.hull
+**.aux
+**.toc
+**.out
+**.log
+docs/*.pdf
+tags

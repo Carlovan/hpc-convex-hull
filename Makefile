@@ -33,6 +33,7 @@ SRC_DIR:=src/
 OUT_DIR:=build/
 INPUTS_DIR:=inputs/
 IMAGES_DIR:=images/
+DOCS_DIR:=docs/
 
 EXE_OMP:=$(addprefix ${OUT_DIR}, $(basename $(notdir $(wildcard ${SRC_DIR}omp-*.c))))
 EXE_MPI:=$(addprefix ${OUT_DIR}, $(basename $(notdir $(wildcard ${SRC_DIR}mpi-*.c))))
@@ -46,6 +47,7 @@ LDLIBS+=-lm
 NVCC:=nvcc
 NVCFLAGS+=-Wno-deprecated-gpu-targets
 NVLDLIBS+=-lm
+REPORT:=$(DOCS_DIR)report.pdf
 
 .PHONY: clean
 
@@ -54,6 +56,8 @@ ALL: $(EXE) datafiles
 datafiles: $(INPUTS_DIR) $(DATAFILES)
 
 images: $(IMAGES_DIR) $(IMAGES)
+
+docs: $(REPORT)
 
 % : %.cu
 	$(NVCC) $(NVCFLAGS) $< -o $@ $(NVLDLIBS)
@@ -101,6 +105,9 @@ $(INPUTS_DIR)circ100k.in:
 
 $(IMAGES_DIR)%.png: $(INPUTS_DIR)%.in $(INPUTS_DIR)%.hull
 	gnuplot -c plot-hull.gp $+ $@
+
+$(DOCS_DIR)%.pdf: $(filter-out %.log %.toc %.aux %.pdf, $(wildcard $(DOCS_DIR)*))
+	pdflatex -output-directory $(DOCS_DIR) $(@:.pdf=.tex)
 
 %/:
 	mkdir $@
