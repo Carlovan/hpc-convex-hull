@@ -57,6 +57,7 @@
 #include "ioutils.h"
 #include "data_types.h"
 #include "mathutils.h"
+#include <omp.h>
 
 /**
  * Returns true if b is better than a
@@ -137,7 +138,7 @@ int main( void )
     tstart = hpc_gettime();
     convex_hull(&pset, &hull);
     elapsed = hpc_gettime() - tstart;
-    print_info(pset, hull, elapsed);
+    print_info(pset, hull, elapsed, omp_get_max_threads());
     write_hull(stdout, &hull);
     free_pointset(&pset);
     free_pointset(&hull);

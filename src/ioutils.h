@@ -105,12 +105,13 @@ void write_hull( FILE *f, const points_t *hull )
     fprintf(f, "%f %f\n", hull->p[0].x, hull->p[0].y);    
 }
 
-void print_info(points_t pset, points_t hull, double elapsed_time ) {
+void print_info(points_t pset, points_t hull, double elapsed_time, int threads_count ) {
     fprintf(stderr, "\nConvex hull of %d points in 2-d:\n\n", pset.n);
     fprintf(stderr, "  Number of vertices: %d\n", hull.n);
     fprintf(stderr, "  Total facet area: %f\n", hull_facet_area(&hull));
     fprintf(stderr, "  Total volume: %f\n\n", hull_volume(&hull));
     fprintf(stderr, "Elapsed time: %f\n\n", elapsed_time);
+    fprintf(stderr, "Threads: %d\n\n", threads_count);
 }
 
 #endif

@@ -120,7 +120,7 @@ int main( void )
     tstart = hpc_gettime();
     convex_hull(&pset, &hull);
     elapsed = hpc_gettime() - tstart;
-    print_info(pset, hull, elapsed);
+    print_info(pset, hull, elapsed, 0);
     write_hull(stdout, &hull);
     free_pointset(&pset);
     free_pointset(&hull);
