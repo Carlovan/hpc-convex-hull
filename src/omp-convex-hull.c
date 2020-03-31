@@ -73,7 +73,7 @@ typedef struct {
 } reduction_value_t;
 
 #pragma omp declare reduction ( best_point : reduction_value_t : \
-        omp_out.point = omp_out.point != omp_in.point && omp_in.point != omp_out.cur && better_point(*omp_out.cur, *omp_out.point, *omp_in.point) \
+        omp_out.point = better_point(*omp_out.cur, *omp_out.point, *omp_in.point) \
             ? omp_in.point : omp_out.point )\
             initializer ( omp_priv = omp_orig )
 
@@ -114,7 +114,7 @@ void convex_hull(const points_t *pset, points_t *hull)
         reduction_value_t next = {&p[(cur + 1) % n], &p[cur]};
         #pragma omp parallel for reduction(best_point:next)
         for (int j=0; j<n; j++) {
-            if (j != cur && &p[j] != next.point && better_point(p[cur], *next.point, p[j])) {
+            if (better_point(p[cur], *next.point, p[j])) {
                 next.point = &p[j];
             }
         }
