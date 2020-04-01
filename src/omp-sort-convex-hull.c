@@ -77,8 +77,20 @@ typedef struct {
             ? omp_in.point : omp_out.point )\
             initializer ( omp_priv = omp_orig )
 
-#pragma omp declare reduction ( leftmost_point : const point_t* : \
+#pragma omp declare reduction ( leftmost_point : point_t* : \
         omp_out = omp_in->x < omp_out->x ? omp_in : omp_out ) initializer ( omp_priv = omp_orig )
+
+void swap_points(point_t *a, point_t *b) {
+    point_t tmp = *a;
+    *a = *b;
+    *b = tmp;
+}
+
+point_t leftmostTmp;
+
+int angle_cmp(const void* a, const void* b) {
+    return turn(leftmostTmp, *(point_t*)b, *(point_t*)a);
+}
 
 /**
  * Compute the convex hull of all points in pset using the "Gift
@@ -88,7 +100,7 @@ typedef struct {
 void convex_hull(const points_t *pset, points_t *hull)
 {
     const int n = pset->n;
-    const point_t *p = pset->p;
+    point_t *p = pset->p;
 
     hull->n = 0;
     /* There can be at most n points in the convex hull. At the end of
@@ -96,14 +108,17 @@ void convex_hull(const points_t *pset, points_t *hull)
     hull->p = (point_t*)malloc(n * sizeof(*(hull->p))); assert(hull->p);
     
     /* Identify the leftmost point p[leftmost] */
-    const point_t *leftmostP = &p[0];
+    point_t *leftmostP = &p[0];
     #pragma omp parallel for reduction(leftmost_point:leftmostP)
     for (int i = 1; i<n; i++) {
         if (p[i].x < leftmostP->x) {
             leftmostP = &p[i];
         }
     }
-    int leftmost = leftmostP - p;
+    leftmostTmp = *leftmostP; // Global, used fro comparison
+    swap_points(leftmostP, &p[n-1]);
+    qsort(p, n-1, sizeof(*p), angle_cmp);
+    int leftmost = n-1;
     int cur = leftmost;
     
     /* Main loop of the Gift Wrapping algorithm. This is where most of
@@ -116,14 +131,15 @@ void convex_hull(const points_t *pset, points_t *hull)
         hull->n++;
         
         /* Search for the next vertex */
-        reduction_value_t next = {&p[(cur + 1) % n], &p[cur]};
+        int nextI = (cur+1)%n;
+        reduction_value_t next = {&p[nextI], &p[cur]};
         #pragma omp parallel for reduction(best_point:next)
-        for (int j=0; j<n; j++) {
+        for (int j=nextI; j<n; j++) {
             if (better_point(p[cur], *next.point, p[j])) {
                 next.point = &p[j];
             }
         }
-        int nextI = next.point - p;
+        nextI = next.point - p;
         assert(cur != nextI);
         cur = nextI;
     } while (cur != leftmost);

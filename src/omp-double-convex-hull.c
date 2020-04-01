@@ -67,18 +67,33 @@ inline bool better_point(const point_t cur, const point_t a, const point_t b) {
     return t == LEFT || (t == COLLINEAR && consecutive_dot_prod(cur, a, b) > 0);
 }
 
+/**
+ * Checks if the point p is above the line between left and right
+ */
+bool is_above_line(const point_t left, const point_t right, const point_t p) {
+    return (right.y - left.y) / (right.x - left.x) * (p.x - left.x) < (p.y - left.y);
+}
+
 typedef struct {
     const point_t *point;
     const point_t * const cur;
 } reduction_value_t;
+
+void swap_points(point_t *a, point_t *b) {
+    point_t tmp = *a;
+    *a = *b;
+    *b = tmp;
+}
 
 #pragma omp declare reduction ( best_point : reduction_value_t : \
         omp_out.point = better_point(*omp_out.cur, *omp_out.point, *omp_in.point) \
             ? omp_in.point : omp_out.point )\
             initializer ( omp_priv = omp_orig )
 
-#pragma omp declare reduction ( leftmost_point : const point_t* : \
+#pragma omp declare reduction ( leftmost_point : point_t* : \
         omp_out = omp_in->x < omp_out->x ? omp_in : omp_out ) initializer ( omp_priv = omp_orig )
+#pragma omp declare reduction ( rightmost_point : point_t* : \
+        omp_out = omp_in->x > omp_out->x ? omp_in : omp_out ) initializer ( omp_priv = omp_orig )
 
 /**
  * Compute the convex hull of all points in pset using the "Gift
@@ -88,45 +103,94 @@ typedef struct {
 void convex_hull(const points_t *pset, points_t *hull)
 {
     const int n = pset->n;
-    const point_t *p = pset->p;
+    point_t *p = pset->p;
 
     hull->n = 0;
     /* There can be at most n points in the convex hull. At the end of
        this function we trim the excess space. */
     hull->p = (point_t*)malloc(n * sizeof(*(hull->p))); assert(hull->p);
+
+    points_t rhull;
+    rhull.n = 0;
+    rhull.p = (point_t*)malloc(n * sizeof(*(rhull.p))); assert(rhull.p);
     
     /* Identify the leftmost point p[leftmost] */
-    const point_t *leftmostP = &p[0];
-    #pragma omp parallel for reduction(leftmost_point:leftmostP)
+    point_t *leftmostP = &p[0];
+    point_t *rightmostP = &p[0];
+    #pragma omp parallel for reduction(leftmost_point:leftmostP) reduction(rightmost_point:rightmostP)
     for (int i = 1; i<n; i++) {
         if (p[i].x < leftmostP->x) {
             leftmostP = &p[i];
         }
-    }
-    int leftmost = leftmostP - p;
-    int cur = leftmost;
-    
-    /* Main loop of the Gift Wrapping algorithm. This is where most of
-       the time is spent; therefore, this is the block of code that
-       must be parallelized. */
-    do {
-        /* Add the current vertex to the hull */
-        assert(hull->n < n);
-        hull->p[hull->n] = p[cur];
-        hull->n++;
-        
-        /* Search for the next vertex */
-        reduction_value_t next = {&p[(cur + 1) % n], &p[cur]};
-        #pragma omp parallel for reduction(best_point:next)
-        for (int j=0; j<n; j++) {
-            if (better_point(p[cur], *next.point, p[j])) {
-                next.point = &p[j];
-            }
+        if (p[i].x > rightmostP->x) {
+            rightmostP = &p[i];
         }
-        int nextI = next.point - p;
-        assert(cur != nextI);
-        cur = nextI;
-    } while (cur != leftmost);
+    }
+    int leftmost = n-1;
+    int rightmost = 0;
+    swap_points(leftmostP, &p[leftmost]);
+    swap_points(rightmostP, &p[rightmost]);
+
+    int leftIndex = 1, rightIndex = n-2;
+    while(leftIndex < rightIndex) {
+        bool isAboveL = is_above_line(p[leftmost], p[rightmost], p[leftIndex]);
+        bool isAboveR = is_above_line(p[leftmost], p[rightmost], p[rightIndex]);
+        
+        if (!isAboveL && isAboveR) {
+            swap_points(&p[leftIndex], &p[rightIndex]);
+        }
+        if (isAboveL) {
+            leftIndex++;
+        } else if (!isAboveR) { // Ensure only one is updated in an iteration
+            rightIndex--;
+        }
+    }
+
+    for(int from_left = 0; from_left < 2; from_left++) {
+        int cur, last;
+        int start, end;
+        points_t *my_hull;
+        if (from_left) {
+            cur = leftmost;
+            last = rightmost;
+            start = 0;
+            end = leftIndex;
+            my_hull = hull;
+        } else {
+            cur = rightmost;
+            last = leftmost;
+            start = leftIndex;
+            end = n;
+            my_hull = &rhull;
+        }
+
+        /* Main loop of the Gift Wrapping algorithm. This is where most of
+           the time is spent; therefore, this is the block of code that
+           must be parallelized. */
+        do {
+            /* Add the current vertex to the hull */
+            my_hull->p[my_hull->n] = p[cur];
+            my_hull->n++;
+            
+            /* Search for the next vertex */
+            reduction_value_t next = {&p[last], &p[cur]};
+            #pragma omp parallel for reduction(best_point:next)
+            for (int j=start; j<end; j++) {
+                if (better_point(p[cur], *next.point, p[j])) {
+                    next.point = &p[j];
+                }
+            }
+            int nextI = next.point - p;
+            assert(cur != nextI);
+            cur = nextI;
+        } while (cur != last);
+    }
+
+    // Add all points from the right hull to the left one
+    for (int i = 0; i < rhull.n; i++) {
+        hull->p[hull->n] = rhull.p[i];
+        hull->n++;
+    }
     
     /* Trim the excess space in the convex hull array */
     hull->p = (point_t*)realloc(hull->p, (hull->n) * sizeof(*(hull->p)));

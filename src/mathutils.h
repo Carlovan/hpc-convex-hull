@@ -8,6 +8,10 @@
 #define M_PI 3.14159265358979323846
 #endif
 
+int min(const int a, const int b) {
+    return a < b ? a : b;
+}
+
 enum {
     LEFT = -1,
     COLLINEAR,

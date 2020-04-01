@@ -110,7 +110,6 @@ void convex_hull(const points_t *pset, points_t *hull)
     assert(hull->p); 
 }
 
-
 int main( void )
 {
     points_t pset, hull;
