@@ -26,7 +26,7 @@ for ex in $executables; do
 
             echo -n "$baseEx,$baseIn,"
             for _ in `seq 1 $((EVALS))`; do
-                $ex < $inFile 2>&1 > /dev/null | grep -E "Elapsed" | sed -E 's/^.*time: +(.*)$/\1/'
+                $cmd < $inFile 2>&1 > /dev/null | grep -E "Elapsed" | sed -E 's/^.*time: +(.*)$/\1/'
             done | sort -n | tail -n +2 | head -n -1 | awk '{x+=$1; next} END{printf "%.7f", x/NR}' | tr -d '\n'
             echo ",$threads"
         done
