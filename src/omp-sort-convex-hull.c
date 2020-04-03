@@ -58,6 +58,7 @@
 #include "data_types.h"
 #include "mathutils.h"
 #include <omp.h>
+#include <string.h>
 
 /**
  * Returns true if b is better than a
@@ -66,16 +67,6 @@ inline bool better_point(const point_t cur, const point_t a, const point_t b) {
     int t = turn(cur, a, b);
     return t == LEFT || (t == COLLINEAR && consecutive_dot_prod(cur, a, b) > 0);
 }
-
-typedef struct {
-    const point_t *point;
-    const point_t * const cur;
-} reduction_value_t;
-
-#pragma omp declare reduction ( best_point : reduction_value_t : \
-        omp_out.point = better_point(*omp_out.cur, *omp_out.point, *omp_in.point) \
-            ? omp_in.point : omp_out.point )\
-            initializer ( omp_priv = omp_orig )
 
 #pragma omp declare reduction ( leftmost_point : point_t* : \
         omp_out = omp_in->x < omp_out->x ? omp_in : omp_out ) initializer ( omp_priv = omp_orig )
@@ -122,7 +113,7 @@ void convex_hull(points_t *pset, points_t *hull)
     #pragma omp parallel
     #pragma omp master
     num_threads = omp_get_num_threads();
-    
+
     /* Identify the leftmost point p[leftmost] */
     point_t *leftmostP = &p[0];
     #pragma omp parallel for reduction(leftmost_point:leftmostP)
@@ -133,6 +124,8 @@ void convex_hull(points_t *pset, points_t *hull)
     }
     leftmostTmp = *leftmostP; // Global, used fro comparison
     swap_points(leftmostP, &p[n-1]);
+
+    // Sort points
     #pragma omp parallel
     {
         const int id = omp_get_thread_num();
@@ -167,32 +160,60 @@ void convex_hull(points_t *pset, points_t *hull)
     pset->p = p;
     free(sortTmp);
 
+    // next[i] is the point after [i] in the hull
+    int* next = (int*)malloc(n * sizeof(int)); assert(next);
+    // prev[i] is the point before [i] in the hull
+    int* prev = (int*)malloc(n * sizeof(int)); assert(prev);
+
+    memset(next, -1, n * sizeof(int));
+
     int leftmost = n-1;
+
+    #pragma omp parallel
+    {
+        const int id = omp_get_thread_num();
+        const int part_size = (n + num_threads - 1) / num_threads;
+        const int start = id * part_size;
+        const int end = min((id + 1) * part_size, n-1);
+
+        int cur = id == 0 ? leftmost : start;
+        do {
+            next[cur] = (cur+1) % n;
+            for(int i = start; i <= end; i++) {
+                if (better_point(p[cur], p[next[cur]], p[i])) {
+                    next[cur] = i;
+                }
+            }
+            cur = next[cur];
+        } while(cur < end);
+    }
+
+    for(int i = 0; i < n; i++) {
+        if (next[i] != -1)
+            prev[next[i]] = i;
+    }
+
     int cur = leftmost;
-    
-    /* Main loop of the Gift Wrapping algorithm. This is where most of
-       the time is spent; therefore, this is the block of code that
-       must be parallelized. */
     do {
-        /* Add the current vertex to the hull */
-        assert(hull->n < n);
+        bool removed = false;
+
+        while(better_point(p[cur], p[next[cur]], p[next[next[cur]]])) {
+            next[cur] = next[next[cur]];
+            removed = true;
+        }
+        cur = removed ? prev[cur] : next[cur];
+    } while(cur != leftmost);
+
+    cur = leftmost;
+    do {
         hull->p[hull->n] = p[cur];
         hull->n++;
-        
-        /* Search for the next vertex */
-        int nextI = (cur+1)%n;
-        reduction_value_t next = {&p[nextI], &p[cur]};
-        #pragma omp parallel for reduction(best_point:next)
-        for (int j=nextI; j<n; j++) {
-            if (better_point(p[cur], *next.point, p[j])) {
-                next.point = &p[j];
-            }
-        }
-        nextI = next.point - p;
-        assert(cur != nextI);
-        cur = nextI;
-    } while (cur != leftmost);
-    
+        cur = next[cur];
+    } while(cur != leftmost);
+
+    free(next);
+    free(prev);
+
     /* Trim the excess space in the convex hull array */
     hull->p = (point_t*)realloc(hull->p, (hull->n) * sizeof(*(hull->p)));
     assert(hull->p); 
@@ -203,7 +224,7 @@ int main( void )
 {
     points_t pset, hull;
     double tstart, elapsed;
-    
+
     read_input(stdin, &pset);
     tstart = hpc_gettime();
     convex_hull(&pset, &hull);
@@ -212,5 +233,5 @@ int main( void )
     write_hull(stdout, &hull);
     free_pointset(&pset);
     free_pointset(&hull);
-    return EXIT_SUCCESS;    
+    return EXIT_SUCCESS;
 }
