@@ -86,8 +86,17 @@ void swap_points(point_t *a, point_t *b) {
     *b = tmp;
 }
 
+void swap_point_pointers(point_t **a, point_t ** b) {
+    point_t *tmp = *a;
+    *a = *b;
+    *b = tmp;
+}
+
 point_t leftmostTmp;
 
+/**
+ * Returns < 0 if a < b
+ */
 int angle_cmp(const void* a, const void* b) {
     return turn(leftmostTmp, *(point_t*)b, *(point_t*)a);
 }
@@ -97,7 +106,7 @@ int angle_cmp(const void* a, const void* b) {
  * Wrapping" algorithm. The vertices are stored in the hull data
  * structure, that does not need to be initialized by the caller.
  */
-void convex_hull(const points_t *pset, points_t *hull)
+void convex_hull(points_t *pset, points_t *hull)
 {
     const int n = pset->n;
     point_t *p = pset->p;
@@ -106,6 +115,13 @@ void convex_hull(const points_t *pset, points_t *hull)
     /* There can be at most n points in the convex hull. At the end of
        this function we trim the excess space. */
     hull->p = (point_t*)malloc(n * sizeof(*(hull->p))); assert(hull->p);
+
+    point_t *sortTmp = (point_t*)malloc(n * sizeof(*(pset->p))); assert(sortTmp);
+
+    int num_threads;
+    #pragma omp parallel
+    #pragma omp master
+    num_threads = omp_get_num_threads();
     
     /* Identify the leftmost point p[leftmost] */
     point_t *leftmostP = &p[0];
@@ -117,7 +133,40 @@ void convex_hull(const points_t *pset, points_t *hull)
     }
     leftmostTmp = *leftmostP; // Global, used fro comparison
     swap_points(leftmostP, &p[n-1]);
-    qsort(p, n-1, sizeof(*p), angle_cmp);
+    #pragma omp parallel
+    {
+        const int id = omp_get_thread_num();
+        const int part_size = (n-1 + num_threads-1) / num_threads;
+        const int start = id * part_size;
+        int end = min((id + 1) * part_size, n-1);
+        qsort(p+start, end-start, sizeof(*p), angle_cmp);
+
+        #pragma omp barrier
+
+        for (int len = 2; len/2 < num_threads; len *= 2) {
+            if (id % len == 0) {
+                end = min((id + len) * part_size, n-1);
+                const int middle = min(end, (id + len/2) * part_size);
+                int left = start, right = middle;
+                int next = start;
+                while (right < end || left < middle) {
+                    assert(next < end);
+                    if (right >= end || (left < middle && angle_cmp(&p[left], &p[right]) < 0)) {
+                        sortTmp[next++] = p[left++];
+                    } else {
+                        sortTmp[next++] = p[right++];
+                    }
+                }
+            }
+            #pragma omp barrier
+            #pragma omp single
+            swap_point_pointers(&sortTmp, &p);
+        }
+    }
+    p[n-1] = leftmostTmp;
+    pset->p = p;
+    free(sortTmp);
+
     int leftmost = n-1;
     int cur = leftmost;
     
