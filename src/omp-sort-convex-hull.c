@@ -179,7 +179,7 @@ void convex_hull(points_t *pset, points_t *hull)
         int cur = id == 0 ? leftmost : start;
         do {
             next[cur] = (cur+1) % n;
-            for(int i = start; i <= end; i++) {
+            for(int i = next[cur]; i <= end; i++) {
                 if (better_point(p[cur], p[next[cur]], p[i])) {
                     next[cur] = i;
                 }
@@ -198,6 +198,7 @@ void convex_hull(points_t *pset, points_t *hull)
         bool removed = false;
 
         while(better_point(p[cur], p[next[cur]], p[next[next[cur]]])) {
+            prev[next[next[cur]]] = cur;
             next[cur] = next[next[cur]];
             removed = true;
         }
