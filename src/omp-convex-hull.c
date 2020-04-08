@@ -59,10 +59,14 @@
 #include "mathutils.h"
 #include <omp.h>
 
+int currentPoint; // Used for comparison
+const point_t *points; // Used for comparison
+
 /**
  * Returns true if b is better than a
  */
-inline bool better_point(const point_t cur, const point_t a, const point_t b) {
+inline bool better_point(const int ai, const int bi) {
+    point_t cur = points[currentPoint], a = points[ai], b = points[bi];
     int t = turn(cur, a, b);
     return t == LEFT || (t == COLLINEAR && consecutive_dot_prod(cur, a, b) > 0);
 }
@@ -72,9 +76,14 @@ typedef struct {
     const point_t * const cur;
 } reduction_value_t;
 
-#pragma omp declare reduction ( best_point : reduction_value_t : \
-        omp_out.point = better_point(*omp_out.cur, *omp_out.point, *omp_in.point) \
-            ? omp_in.point : omp_out.point )\
+/*#pragma omp declare reduction ( best_point : reduction_value_t : \*/
+        /*omp_out.point = better_point(*omp_out.cur, *omp_out.point, *omp_in.point) \*/
+            /*? omp_in.point : omp_out.point )\*/
+            /*initializer ( omp_priv = omp_orig )*/
+
+#pragma omp declare reduction ( best_point : int : \
+        omp_out = better_point(omp_out, omp_in) \
+            ? omp_in : omp_out )\
             initializer ( omp_priv = omp_orig )
 
 #pragma omp declare reduction ( leftmost_point : const point_t* : \
@@ -105,6 +114,8 @@ void convex_hull(const points_t *pset, points_t *hull)
     }
     int leftmost = leftmostP - p;
     int cur = leftmost;
+
+    points = p;
     
     /* Main loop of the Gift Wrapping algorithm. This is where most of
        the time is spent; therefore, this is the block of code that
@@ -115,17 +126,21 @@ void convex_hull(const points_t *pset, points_t *hull)
         hull->p[hull->n] = p[cur];
         hull->n++;
         
+        currentPoint = cur;
         /* Search for the next vertex */
-        reduction_value_t next = {&p[(cur + 1) % n], &p[cur]};
+        //reduction_value_t next = {&p[(cur + 1) % n], &p[cur]};
+        int next = (cur+1)%n;
         #pragma omp parallel for reduction(best_point:next)
         for (int j=0; j<n; j++) {
-            if (better_point(p[cur], *next.point, p[j])) {
-                next.point = &p[j];
+            if (better_point(next, j)) {
+                next = j;
             }
         }
-        int nextI = next.point - p;
-        assert(cur != nextI);
-        cur = nextI;
+        /*int nextI = next.point - p;*/
+        /*assert(cur != nextI);*/
+        /*cur = nextI;*/
+        assert(cur != next);
+        cur = next;
     } while (cur != leftmost);
     
     /* Trim the excess space in the convex hull array */
