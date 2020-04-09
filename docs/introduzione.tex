@@ -5,3 +5,9 @@ In questa relazione si analizzano alcune possibilità di implementazione paralle
 Per poter facilmente confrontare il risultato delle diverse soluzioni, ogni implementazione trova il \emph{convex hull} con il minor numero di punti;
 la versione seriale è stata quindi leggermente modificata per rimuovere dall'\emph{hull} punti collineari consecutivi\footnote{Questa piccola modifica ha comportanto un inaspettato aumento della velocità di esecuzione, dovuto probabilmente ad ottimizzazioni messe in atto dal compilatore o al verificarsi di qualche fortunata condizione}.
  
+Per calcolare lo \emph{speedup} è stata utilizzata la formula
+\begin{equation}
+    \frac{1}{|I|} \sum_{i \in I}{} \frac{T_{parallel}(1)}{T_{parallel}(P)}
+\end{equation}
+in cui $I$ è l'insieme degli input, $T_{parallel}(P)$ è il tempo di esecuzione con $P$ processori; i tempi sono stati ottenuti con 5 diverse misurazioni,
+rimuovendo la più lenta e la più veloce e facendo la media delle rimanenti.

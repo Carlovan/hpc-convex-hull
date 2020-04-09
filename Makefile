@@ -107,7 +107,7 @@ $(IMAGES_DIR)%.png: $(INPUTS_DIR)%.in $(INPUTS_DIR)%.hull
 	gnuplot -c plot-hull.gp $+ $@
 
 $(DOCS_DIR)%.pdf: $(filter-out %.log %.toc %.aux %.pdf, $(wildcard $(DOCS_DIR)*))
-	pdflatex -output-directory $(DOCS_DIR) $(@:.pdf=.tex)
+	pdflatex -halt-on-error -output-directory $(DOCS_DIR) $(@:.pdf=.tex)
 
 %/:
 	mkdir $@

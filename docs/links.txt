@@ -1,0 +1,2 @@
+OpenMP and compiler optimizations https://software.intel.com/en-us/forums/intel-moderncode-for-parallel-architectures/topic/309975
+Tips for OpenMP http://akira.ruc.dk/~keld/teaching/IPDC_f10/Slides/pdf4x/4_Performance.4x.pdf
