@@ -81,7 +81,7 @@ const point_t* better_point(const point_t* cur, const point_t* a, const point_t*
  * structure, that does not need to be initialized by the caller.
  */
 void convex_hull(const points_t *pset, points_t *hull)
-
+{
     const int n = pset->n;
     const point_t *p = pset->p;
     int i, j;
