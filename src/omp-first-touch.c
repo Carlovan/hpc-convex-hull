@@ -60,19 +60,20 @@
 
 
 typedef struct {
-    const point_t *point;
-    const point_t *cur;
+    int point;
+    int cur;
+    const point_t* const p;
 } reduction_value_t;
 
-const point_t* better_point(const point_t* cur, const point_t* a, const point_t* b) {
-    int t = turn(*cur, *a, *b);
-    if (t == LEFT || (t == COLLINEAR && consecutive_dot_prod(*cur, *a, *b) > 0)) {
+int better_point(const int cur, const int a, const int b, const point_t * const p) {
+    int t = turn(p[cur], p[a], p[b]);
+    if (t == LEFT || (t == COLLINEAR && consecutive_dot_prod(p[cur], p[a], p[b]) > 0)) {
         return b;
     }
     return a;
 }
 
-#pragma omp declare reduction ( best_point : reduction_value_t : omp_out.point = better_point(omp_out.cur, omp_out.point, omp_in.point) )\
+#pragma omp declare reduction ( best_point : reduction_value_t : omp_out.point = better_point(omp_out.cur, omp_out.point, omp_in.point, omp_out.p) )\
     initializer (omp_priv = omp_orig)
 
 /**
@@ -83,10 +84,8 @@ const point_t* better_point(const point_t* cur, const point_t* a, const point_t*
 void convex_hull(const points_t *pset, points_t *hull)
 {
     const int n = pset->n;
-    const point_t *p = pset->p;
     int i, j;
     int cur, leftmost;
-    reduction_value_t next;
 
     hull->n = 0;
     /* There can be at most n points in the convex hull. At the end of
@@ -96,46 +95,56 @@ void convex_hull(const points_t *pset, points_t *hull)
     /* Identify the leftmost point p[leftmost] */
     leftmost = 0;
     for (i = 1; i<n; i++) {
-        if (p[i].x < p[leftmost].x) {
+        if (pset->p[i].x < pset->p[leftmost].x) {
             leftmost = i;
         }
     }
     cur = leftmost;
     
-    hull->p[0] = p[cur];
+    hull->p[0] = pset->p[cur];
     hull->n = 1;
-    next.point = &p[(cur + 1) % n];
-    next.cur = &p[cur];
+
+    point_t *p = (point_t*)malloc(n * sizeof(*(pset->p))); assert(p);
+
+    reduction_value_t next = {0,0,p};
+    next.point = (cur + 1) % n;
+    next.cur = cur;
         
     /* Main loop of the Gift Wrapping algorithm. This is where most of
        the time is spent; therefore, this is the block of code that
        must be parallelized. */
-    #pragma omp parallel default(none) firstprivate(n) shared(cur, hull, p, leftmost, next, stderr)
-    do {
-        /* Search for the next vertex */
-        #pragma omp for reduction(best_point:next)
-        for (j=0; j<n; j++) {
-            next.point = better_point(next.cur, next.point, &p[j]);
+    #pragma omp parallel default(none) firstprivate(n) shared(pset, cur, hull, p, leftmost, next, stderr) proc_bind(spread)
+    {
+        #pragma omp for schedule(static)
+        for(j = 0; j < n; j++) {
+            p[j] = pset->p[j];
         }
-        #pragma omp single
-        {
-            int nextI = next.point - p;
-            assert(cur != nextI);
-            cur = nextI;
-            /* Add the current vertex to the hull */
-            if (cur != leftmost) {
-                assert(hull->n < n);
-                hull->p[hull->n] = p[cur];
-                hull->n++;
-                next.point = &p[(cur + 1) % n];
-                next.cur = &p[cur];
+        do {
+            /* Search for the next vertex */
+            #pragma omp for reduction(best_point:next) schedule(static)
+            for (j=0; j<n; j++) {
+                next.point = better_point(next.cur, next.point, j, p);
             }
-        }
-    } while (cur != leftmost);
+            #pragma omp single
+            {
+                assert(cur != next.point);
+                cur = next.point;
+                /* Add the current vertex to the hull */
+                if (cur != leftmost) {
+                    assert(hull->n < n);
+                    hull->p[hull->n] = p[cur];
+                    hull->n++;
+                    next.point = (cur + 1) % n;
+                    next.cur = cur;
+                }
+            }
+        } while (cur != leftmost);
+    }
     
     /* Trim the excess space in the convex hull array */
     hull->p = (point_t*)realloc(hull->p, (hull->n) * sizeof(*(hull->p)));
     assert(hull->p); 
+    free(p);
 }
 
 int main( void )
