@@ -115,7 +115,7 @@ void convex_hull(const points_t *pset, points_t *hull)
     /* Main loop of the Gift Wrapping algorithm. This is where most of
        the time is spent; therefore, this is the block of code that
        must be parallelized. */
-    #pragma omp parallel default(none) firstprivate(n, num_threads) shared(stderr, pset, cur, hull, leftmost, results) proc_bind(master)
+    #pragma omp parallel default(none) firstprivate(n, num_threads) shared(stderr, pset, cur, hull, leftmost, results)
     {
         const int id = omp_get_thread_num();
         const int part_size = (n + num_threads - 1) / num_threads;
