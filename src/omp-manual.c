@@ -54,11 +54,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include "ioutils.h"
 #include "data_types.h"
 #include "mathutils.h"
 
+const int copyThreshold = 200;
 
 typedef struct {
     int point;
@@ -121,9 +123,11 @@ void convex_hull(const points_t *pset, points_t *hull)
         const int end = min(n, start + part_size);
         const int memsize = (end-start)*sizeof(point_t);
         point_t *p;
-        if (part_size > 200) {
+        bool copied = false;
+        if (part_size > copyThreshold) {
             p = (point_t*)malloc(memsize); assert(p);
             memcpy(p, pset->p + start, memsize);
+            copied = true;
         } else {
             p = &pset->p[start];
         }
@@ -159,7 +163,9 @@ void convex_hull(const points_t *pset, points_t *hull)
                 cur = next;
             }
         } while (cur != leftmost);
-        free(p);
+        if (copied) {
+            free(p);
+        }
     }
     free(results);
     
