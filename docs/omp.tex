@@ -1,4 +1,7 @@
 \section{Implementazioni OpenMP}
+Per parallelizzare l'algoritmo usando \emph{OpenMP} sono state realizzate alcune versioni in modo da valutare l'efficacia di diversi approcci strumenti.
+In particolare è risultato evidente che impostando la variabile d'ambiente \texttt{OMP_PROC_BIND=true} si ottengono risultati migliori sia dal punto di vista dell'efficienza , ma soprattutto da quello della \textbf{ripetibilità}: senza l'utilizzo della variabile esecuzione successive dello stesso programma terminavano spesso con tempi molto diversi.
+
 Analizzando il funzionamento dell'algoritmo si può dire che ad ogni iterazione viene aggiunto all'\emph{hull} il punto più esterno rispetto all'ultimo inserito $P_l$;
 $P_a$ è più esterno di $P_b$ se la spezzata $P_lP_aP_b$ è orientata in senso orario.
 
