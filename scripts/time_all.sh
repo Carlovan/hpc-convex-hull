@@ -5,6 +5,7 @@ executables=$PWD/build/*
 NPROC=`nproc`
 EVALS=10
 
+export OMP_PROC_BIND=true
 echo "executable,input,time,threads"
 
 for _ in `seq 1 $EVALS`; do
