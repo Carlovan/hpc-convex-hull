@@ -60,7 +60,7 @@
 #include "data_types.h"
 #include "mathutils.h"
 
-const int copyThreshold = 200;
+const int copyThreshold = 10000;
 
 typedef struct {
     int point;
