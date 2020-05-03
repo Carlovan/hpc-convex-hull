@@ -113,7 +113,7 @@ void convex_hull(const points_t *pset, points_t *hull)
     /* Main loop of the Gift Wrapping algorithm. This is where most of
        the time is spent; therefore, this is the block of code that
        must be parallelized. */
-    #pragma omp parallel default(none) firstprivate(n) shared(pset, cur, hull, p, leftmost, next, stderr) proc_bind(spread)
+    #pragma omp parallel default(none) firstprivate(n) shared(pset, cur, hull, p, leftmost, next, stderr)
     {
         #pragma omp for schedule(static)
         for(j = 0; j < n; j++) {
