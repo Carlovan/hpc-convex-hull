@@ -3,7 +3,7 @@
 inputs=$PWD/inputs/*
 executables=$PWD/build/*
 NPROC=`nproc`
-EVALS=5
+EVALS=10
 
 echo "executable,input,time,threads"
 
