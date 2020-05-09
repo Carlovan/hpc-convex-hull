@@ -61,16 +61,18 @@
 
 point_t cur_point;
 
+bool points_equal(const point_t a, const point_t b) {
+    return fcmp(a.x, b.x) == 0 && fcmp(a.y, b.y) == 0;
+}
+
 const point_t better_point(const point_t a, const point_t b) {
+    if (points_equal(a, cur_point))
+        return b;
     int t = turn(cur_point, a, b);
     if (t == LEFT || (t == COLLINEAR && consecutive_dot_prod(cur_point, a, b) > 0)) {
         return b;
     }
     return a;
-}
-
-bool points_equal(const point_t a, const point_t b) {
-    return fcmp(a.x, b.x) == 0 && fcmp(b.x, b.y) == 0;
 }
 
 #pragma omp declare reduction ( best_point : point_t : omp_out = better_point(omp_out, omp_in) )\
@@ -116,7 +118,7 @@ void convex_hull(const points_t *pset, points_t *hull)
         /* Search for the next vertex */
         point_t next = p[0];
         #pragma omp parallel for reduction(best_point:next)
-        for (j=1; j<n; j++) {
+        for (j=0; j<n; j++) {
             next = better_point(next, p[j]);
         }
         cur = next;
