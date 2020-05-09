@@ -53,26 +53,27 @@
 #include "hpc.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 #include "ioutils.h"
 #include "data_types.h"
 #include "mathutils.h"
 
+point_t cur_point;
 
-typedef struct {
-    const point_t *point;
-    const point_t *cur;
-} reduction_value_t;
-
-const point_t* better_point(const point_t* cur, const point_t* a, const point_t* b) {
-    int t = turn(*cur, *a, *b);
-    if (t == LEFT || (t == COLLINEAR && consecutive_dot_prod(*cur, *a, *b) > 0)) {
+const point_t better_point(const point_t a, const point_t b) {
+    int t = turn(cur_point, a, b);
+    if (t == LEFT || (t == COLLINEAR && consecutive_dot_prod(cur_point, a, b) > 0)) {
         return b;
     }
     return a;
 }
 
-#pragma omp declare reduction ( best_point : reduction_value_t : omp_out.point = better_point(omp_out.cur, omp_out.point, omp_in.point) )\
+bool points_equal(const point_t a, const point_t b) {
+    return fcmp(a.x, b.x) == 0 && fcmp(b.x, b.y) == 0;
+}
+
+#pragma omp declare reduction ( best_point : point_t : omp_out = better_point(omp_out, omp_in) )\
     initializer (omp_priv = omp_orig)
 
 /**
@@ -85,14 +86,13 @@ void convex_hull(const points_t *pset, points_t *hull)
     const int n = pset->n;
     const point_t *p = pset->p;
     int i, j;
-    int cur, leftmost;
-    reduction_value_t next;
+    int leftmost;
 
     hull->n = 0;
     /* There can be at most n points in the convex hull. At the end of
        this function we trim the excess space. */
     hull->p = (point_t*)malloc(n * sizeof(*(hull->p))); assert(hull->p);
-    
+
     /* Identify the leftmost point p[leftmost] */
     leftmost = 0;
     for (i = 1; i<n; i++) {
@@ -100,33 +100,31 @@ void convex_hull(const points_t *pset, points_t *hull)
             leftmost = i;
         }
     }
-    cur = leftmost;
-    
-        
+    point_t leftmostP = p[leftmost];
+    point_t cur = leftmostP;
+
     /* Main loop of the Gift Wrapping algorithm. This is where most of
        the time is spent; therefore, this is the block of code that
        must be parallelized. */
     do {
         /* Add the current vertex to the hull */
         assert(hull->n < n);
-        hull->p[hull->n] = p[cur];
+        hull->p[hull->n] = cur;
         hull->n++;
+        cur_point = cur;
 
         /* Search for the next vertex */
-        next.point = &p[(cur + 1) % n];
-        next.cur = &p[cur];
+        point_t next = p[0];
         #pragma omp parallel for reduction(best_point:next)
-        for (j=0; j<n; j++) {
-            next.point = better_point(next.cur, next.point, &p[j]);
+        for (j=1; j<n; j++) {
+            next = better_point(next, p[j]);
         }
-        int nextI = next.point - p;
-        assert(cur != nextI);
-        cur = nextI;
-    } while (cur != leftmost);
-    
+        cur = next;
+    } while (!points_equal(cur, leftmostP));
+
     /* Trim the excess space in the convex hull array */
     hull->p = (point_t*)realloc(hull->p, (hull->n) * sizeof(*(hull->p)));
-    assert(hull->p); 
+    assert(hull->p);
 }
 
 int main( void )
