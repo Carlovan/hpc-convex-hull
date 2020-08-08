@@ -3,6 +3,7 @@
 
 #include "data_types.h"
 #include <math.h>
+#include <stdbool.h>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -110,6 +111,15 @@ double squared_dist(point_t p1, point_t p2) {
     double dx = p1.x - p2.x;
     double dy = p1.y - p2.y;
     return (dx*dx) + (dy*dy);
+}
+
+double dist(point_t p1, point_t p2) {
+    return sqrt(squared_dist(p1, p2));
+}
+
+// Return true if the points are equal (compared usign fcmp).
+bool points_eq(const point_t a, const point_t b) {
+    return fcmp(a.x, b.x) == 0 && fcmp(a.y, b.y) == 0;
 }
 
 #endif
