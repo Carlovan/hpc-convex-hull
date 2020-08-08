@@ -61,21 +61,12 @@
 
 point_t cur_point;
 
-bool points_equal(const point_t a, const point_t b) {
-    return fcmp(a.x, b.x) == 0 && fcmp(a.y, b.y) == 0;
-}
-
-const point_t better_point(const point_t a, const point_t b) {
-    if (points_equal(a, cur_point))
-        return b;
+bool better_point(const point_t a, const point_t b) {
     int t = turn(cur_point, a, b);
-    if (t == LEFT || (t == COLLINEAR && consecutive_dot_prod(cur_point, a, b) > 0)) {
-        return b;
-    }
-    return a;
+    return t == LEFT || (t == COLLINEAR && consecutive_dot_prod(cur_point, a, b) >= 0);
 }
 
-#pragma omp declare reduction ( best_point : point_t : omp_out = better_point(omp_out, omp_in) )\
+#pragma omp declare reduction ( best_point : point_t : omp_out = better_point(omp_out, omp_in) ? omp_out : omp_in )\
     initializer (omp_priv = omp_orig)
 
 /**
@@ -119,10 +110,10 @@ void convex_hull(const points_t *pset, points_t *hull)
         point_t next = p[0];
         #pragma omp parallel for reduction(best_point:next)
         for (j=0; j<n; j++) {
-            next = better_point(next, p[j]);
+            next = better_point(next, p[j]) ? next : p[j];
         }
         cur = next;
-    } while (!points_equal(cur, leftmostP));
+    } while (!points_eq(cur, leftmostP));
 
     /* Trim the excess space in the convex hull array */
     hull->p = (point_t*)realloc(hull->p, (hull->n) * sizeof(*(hull->p)));
