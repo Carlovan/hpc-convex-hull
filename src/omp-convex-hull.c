@@ -61,9 +61,12 @@
 #include "data_types.h"
 #include "mathutils.h"
 
+#pragma omp declare reduction (leftmost_point : point_t : omp_out = fcmp(omp_out.x, omp_in.x) < 0 ? omp_out : omp_in) \
+    initializer ( omp_priv = omp_orig )
+
 /* If every thread works on less than `copyThreshold` points,
  * then they are not copied */
-const int copyThreshold = 10000;
+const int copyThreshold = 2e9;
 
 bool better_point(const point_t cur, const point_t a, const point_t b) {
     int t = turn(cur, a, b);
@@ -77,8 +80,6 @@ bool better_point(const point_t cur, const point_t a, const point_t b) {
  */
 void convex_hull(const points_t *pset, points_t *hull) {
     const int n = pset->n;
-    int i;
-    int cur, leftmost;
 
     hull->n = 0;
     /* There can be at most n points in the convex hull. At the end of
@@ -86,13 +87,14 @@ void convex_hull(const points_t *pset, points_t *hull) {
     hull->p = (point_t*)malloc(n * sizeof(*(hull->p))); assert(hull->p);
     
     /* Identify the leftmost point p[leftmost] */
-    leftmost = 0;
-    for (i = 1; i<n; i++) {
-        if (pset->p[i].x < pset->p[leftmost].x) {
-            leftmost = i;
+    point_t leftmost = pset->p[0];
+    #pragma omp parallel for default(none) shared(pset, n) reduction(leftmost_point:leftmost)
+    for (int i = 1; i<n; i++) {
+        if (pset->p[i].x < leftmost.x) {
+            leftmost = pset->p[i];
         }
     }
-    cur = leftmost;
+    point_t cur = leftmost;
 
     /* Retrieve number of threads to allocate enough memory
        for reduced values of individual threads */
@@ -101,7 +103,7 @@ void convex_hull(const points_t *pset, points_t *hull) {
     #pragma omp master
     num_threads = omp_get_num_threads();
 
-    int* results = (int*)malloc(num_threads * sizeof(int));
+    point_t* results = (point_t*)malloc(num_threads * sizeof(point_t));
     assert(results);
     
     #pragma omp parallel default(none) firstprivate(n, num_threads) shared(pset, cur, hull, leftmost, results)
@@ -131,16 +133,15 @@ void convex_hull(const points_t *pset, points_t *hull) {
             #pragma omp single
             {
                 assert(hull->n < n);
-                hull->p[hull->n] = pset->p[cur];
+                hull->p[hull->n] = cur;
                 hull->n++;
             }
 
             /* Search for the next vertex; every thread works on its partition */
-            point_t curP = pset->p[cur];
-            int next = start;
+            point_t next = p[0];
             for (int j=start+1; j<end; j++) {
-                if(next == cur || better_point(curP, p[next-start], p[j-start])) {
-                    next = j;
+                if(better_point(cur, next, p[j-start])) {
+                    next = p[j-start];
                 }
             }
             /* Save locally reduced value in common array */
@@ -152,14 +153,14 @@ void convex_hull(const points_t *pset, points_t *hull) {
             {
                 next = results[0];
                 for(int j = 1; j < num_threads; j++) {
-                    if (better_point(curP, pset->p[next], pset->p[results[j]])) {
+                    if (better_point(cur, next, results[j])) {
                         next = results[j];
                     }
                 }
-                assert(cur != next);
+                assert(!points_eq(cur, next));
                 cur = next;
             }
-        } while (cur != leftmost);
+        } while (!points_eq(cur, leftmost));
 
         /* If there were few points we didn't copy */
         if (copied) {
