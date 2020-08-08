@@ -1,3 +1,4 @@
 OpenMP and compiler optimizations https://software.intel.com/en-us/forums/intel-moderncode-for-parallel-architectures/topic/309975
 Tips for OpenMP http://akira.ruc.dk/~keld/teaching/IPDC_f10/Slides/pdf4x/4_Performance.4x.pdf
 First touch https://books.google.it/books?id=vzFBDwAAQBAJ&pg=PA255&lpg=PA255&dq=malloc+first-touch&source=bl&ots=tTGFjFdBbX&sig=ACfU3U3uUuqRWDv7f2qVAQcDLd7eJV5FqQ&hl=en&sa=X&ved=2ahUKEwjQnI6f_dvoAhUI06YKHfrfDtQQ6AEwBHoECAwQLg#v=onepage&q=malloc%20first-touch&f=false
+NUMA https://en.wikipedia.org/wiki/Non-uniform_memory_access

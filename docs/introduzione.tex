@@ -1,13 +1,19 @@
 \section{Introduzione}
-In questa relazione si analizzano alcune possibilità di implementazione parallela dell'algoritmo \textbf{Gift Wrapping}\footnote{\url{https://en.wikipedia.org/wiki/Gift_wrapping_algorithm}}.
+In questa relazione si analizzano alcune possibilità di implementazione parallela dell'algoritmo \textbf{Gift Wrapping}\footnote{\url{https://en.wikipedia.org/wiki/Gift\_wrapping\_algorithm}}.
 È stato scelto di realizzarne una versione usando \textbf{OpenMP} e una usando \textbf{MPI}.
 
 Per poter facilmente confrontare il risultato delle diverse soluzioni, ogni implementazione trova il \emph{convex hull} con il minor numero di punti;
 la versione seriale è stata quindi leggermente modificata per rimuovere dall'\emph{hull} punti collineari consecutivi\footnote{Questa piccola modifica ha comportanto un inaspettato aumento della velocità di esecuzione nella versione parallela, dovuto probabilmente ad del compilatore o al verificarsi di qualche fortunata condizione}.
  
+Verranno utilizzati dei grafici per mostrare le performance delle diverse soluzioni:
+in ognuno saranno riportati i dati (\emph{speedup} o \emph{tempi di esecuzione} a seconda dei casi) per \textbf{tutti} gli input forniti,
+in modo da poter verificare il comportamento sia sulle diverse tipologie di input (cerchi, distribuzioni gaussiane...) sia sulle diverse dimensioni (numero di punti).
+
+Tutti i tempi vengono misurati sul server \texttt{isi-raptor03} fornito da \emph{UNIBO}, realizzando \textbf{10} diverse misurazioni, scartando le \textbf{2} più veloci e le \textbf{2} più lente e facendo la media delle rimanenti;
+questo per cercare di ottenere dati il più possibile accurati e di escludere eventuali oscillazioni nel carico del server.
+
 Per calcolare lo \emph{speedup} è stata utilizzata la formula
 \begin{equation}
-    \frac{1}{|I|} \sum_{i \in I}{} \frac{T_{parallel}(1)}{T_{parallel}(P)}
+    \frac{T_{parallel}(1)}{T_{parallel}(P)}
 \end{equation}
-in cui $I$ è l'insieme degli input, $T_{parallel}(P)$ è il tempo di esecuzione con $P$ processori; i tempi sono stati ottenuti con 5 diverse misurazioni,
-rimuovendo la più lenta e la più veloce e facendo la media delle rimanenti.
+in cui $T_{parallel}(P)$ è il tempo di esecuzione con $P$ processori.

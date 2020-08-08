@@ -7,6 +7,13 @@
 \usepackage{graphicx}
 \graphicspath{ {images/} }
 
+\newenvironment{plot}
+    {\begin{figure}[h]
+        \centering
+    }
+    {\end{figure}}
+\newcommand{\includeplot}{\includegraphics[width=0.9\textwidth]}
+
 \begin{document}
 
 \author{Giulio Carlassare}
