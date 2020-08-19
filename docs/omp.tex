@@ -19,10 +19,10 @@ Si cerca quindi di evitare che il pool di thread venga ricreato ad ogni iterazio
 è possibile farlo includendo tutto il codice dell'algoritmo all'interno di un blocco \texttt{omp parallel}, al cui interno è presente il ciclo \texttt{omp for} per la ricerca del prossimo punto;
 chiaramente in questo caso è necessario gestire adeguatamente le parti seriali (ad esempio l'aggiunta del punto al \emph{convex hull}).
 
-Inoltre si è cercato di sfruttare il principio di \emph{First Touch}\footnote{TODO} per velocizzare l'accesso alla memoria:
-nelle architetture \emph{NUMA} ogni \emph{NUMANode} ha accesso veloce alla propria memoria locale, mentre raggiungere altre zone di memoria richiede un tempo più lungo;
-dato che è sempre necessario cercare su tutti i punti ogni thread può copiare la partizione di valori su cui lavorerà in un nuovo vettore,
-che sarà posizionato nella memoria locale del \emph{NUMANode} su cui viene eseguito
+Inoltre si è cercato di sfruttare il principio di \emph{First Touch}\footnote{https://software.intel.com/content/www/us/en/develop/articles/memory-allocation-and-first-touch.html} per velocizzare l'accesso alla memoria:
+nelle architetture \emph{NUMA} ogni \emph{NUMANode} accede più velocemente alla propria memoria locale;
+dato che è necessario considerare tutti i punti ad ogni iterazione, ogni thread può copiare la partizione di valori su cui lavorerà in un nuovo vettore
+allocato nella memoria locale del \emph{NUMANode} su cui viene eseguito
 (grazie alla variabile \texttt{OMP\_PROC\_BIND} i thread non dovrebbero venire spostati su core diversi).\\
 Molti dei moderni sistemi operativi applicano inoltre la politica del \emph{First Touch}: le pagine di memoria allocata dal programma vengono istanziate solamente al momento della prima
 scrittura, e vengono quindi posizionate nella memoria locale del \emph{NUMANode} thread che ha effettuato la scrittura.
@@ -49,7 +49,8 @@ Questa volta si ottiene un miglioramento delle prestazioni: di seguito sono most
 
 
 \begin{plot}
-    \includeplot{omp-comparison}
+    % \includeplot{omp-comparison}
+    \includegraphics[width=\textwidth]{omp-comparison}
     \caption{TODO}
     \label{fig:comparison}
 \end{plot}
