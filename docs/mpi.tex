@@ -1,0 +1,17 @@
+\section{Implementazioni MPI}
+\subsection{Introduzione}
+Come per \emph{OpenMP}, anche in questo caso sono state realizzate e messe a confronto due diverse implementazioni; l'architettura a memoria distribuita impone però maggiori limitazioni.
+
+\subsection{Riduzione}
+L'input viene letto dal \emph{master} (processo con $rank = 0$) e subito inviato a tutti gli altri processi. Da questo punto ogni processo esegue l'algoritmo individualmente: in questo modo si cerca di minimizzare le comunicazione tra i processi.
+
+L'unica porzione che viene parallelizzata è quella relativa alla ricerca del punto successivo del \emph{convex hull}; ogni processo considera solamente una partizioni dell'insieme di punti in input, ottenendo così un risultato parziale. Viene quindi utilizzata la funzione \texttt{Allreduce} per trovare il risultato globale e condividerlo con tutti i processi, che continuano individualmente con l'esecuzione dell'algoritmo.
+
+È stato necessario definire un operatore personalizzato per poter usare \texttt{Allreduce};
+inoltre l'insieme dei punti e l'ultimo punto del \emph{convex hull} sono vengono salvati in variabili globali, accessibili anche all'operatore di reduce.
+
+\subsection{Riduzione manuale}
+Anche in questo caso il secondo tentativo è stato quello di effettuare la riduzione manualmente: i risultati parziali vengono distribuiti a tutti i processi con l'operazione \texttt{Allgather}. Successivamente ogni processo calcola il risultato globale individualmente.
+
+In questo modo le prestazioni migliorano leggermente e il codice risulta più semplice.
+Si ottiene un ulteriore miglioramento utilizzando direttamente i punti come \emph{struct} piuttosto che come indici dell'\emph{array} si ottiene un ulteriore miglioramento.
