@@ -23,7 +23,7 @@ for ex in $executables; do
             fi
             cmd=$ex
             if [[ $baseEx = mpi-* ]]; then
-                cmd="mpirun -n $threads $cmd"
+                cmd="mpirun --use-hwthread-cpus -n $threads $cmd"
             fi
 
             echo -n "$baseEx,$baseIn,"

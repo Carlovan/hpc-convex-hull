@@ -88,7 +88,7 @@ void convex_hull(const points_t *pset, points_t *hull) {
     
     /* Identify the leftmost point p[leftmost] */
     point_t leftmost = pset->p[0];
-    #pragma omp parallel for default(none) shared(pset, n) reduction(leftmost_point:leftmost)
+    #pragma omp parallel for default(none) shared(pset) firstprivate(n) reduction(leftmost_point:leftmost)
     for (int i = 1; i<n; i++) {
         if (pset->p[i].x < leftmost.x) {
             leftmost = pset->p[i];
