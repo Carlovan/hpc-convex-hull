@@ -64,9 +64,14 @@ typedef struct {
     const point_t *cur;
 } reduction_value_t;
 
+/**
+ * Returns the better point between a and b, considering cur as the
+ * last point in the convex hull. If the points are collinear,
+ * b is better than a if it is further from cur.
+ */
 const point_t* better_point(const point_t* cur, const point_t* a, const point_t* b) {
     int t = turn(*cur, *a, *b);
-    if (t == LEFT || (t == COLLINEAR && consecutive_dot_prod(*cur, *a, *b) > 0)) {
+    if (t == LEFT || (t == COLLINEAR && fcmp(dist(*cur, *a) + dist(*a, *b), dist(*cur, *b)) == 0)) {
         return b;
     }
     return a;

@@ -1,8 +1,8 @@
 /****************************************************************************
  *
- * convex-hull.c
+ * omp-convex-hull.c
  *
- * Compute the convex hull of a set of points in 2D
+ * Compute the convex hull of a set of points in 2D, parallelized using OpenMP
  *
  * Copyright (C) 2020 Giulio Carlassare <giulio.carlassare(at)studio.unibo.it>
  * Last updated on 2020-05-05
@@ -24,7 +24,7 @@
  *
  * Questo programma calcola l'inviluppo convesso (convex hull) di un
  * insieme di punti 2D letti da standard input con l'algoritmo "gift
- * wrapping";  è stato usato OpenMP per parallelizzare la soluzione.
+ * wrapping";  è stato usato OpenMP per parallelizzare l'esecuzione.
  *   Le coordinate dei vertici dell'inviluppo con il minor numero di
  * punti sono stampate su standard output.  Si veda la specifica del
  * progetto sul sito del corso per una descrizione completa:
@@ -33,7 +33,7 @@
  *
  * Per compilare:
  *
- * gcc -D_XOPEN_SOURCE=600 -std=c99 -Wall -Wpedantic -O2 omp-convex-hull.c -o omp-convex-hull -lm
+ * gcc -D_XOPEN_SOURCE=600 -std=c99 -Wall -Wpedantic -O2 -fopenmp src/omp-convex-hull.c -o build/omp-convex-hull -lm -lgomp
  *
  * (il flag -D_XOPEN_SOURCE=600 e' superfluo perche' viene settato
  * nell'header "hpc.h", ma definirlo tramite la riga di comando fa si'
@@ -42,7 +42,7 @@
  *
  * Per eseguire il programma si puo' usare la riga di comando:
  *
- * ./omp-convex-hull < ace.in > ace.hull
+ * build/omp-convex-hull < ace.in > ace.hull
  * 
  * Per visualizzare graficamente i punti e l'inviluppo calcolato è
  * possibile usare lo script di gnuplot (http://www.gnuplot.info/)
@@ -64,13 +64,20 @@
 #pragma omp declare reduction (leftmost_point : point_t : omp_out = fcmp(omp_out.x, omp_in.x) < 0 ? omp_out : omp_in) \
     initializer ( omp_priv = omp_orig )
 
-/* If every thread works on less than `copyThreshold` points,
- * then they are not copied */
+/**
+ * If every thread works on less than `copyThreshold` points,
+ * then they are not copied
+ */
 const int copyThreshold = 2e9;
 
+/**
+ * Returns true if b is better than a, considering cur as the
+ * last point in the convex hull. If the points are collinear,
+ * b is better than a if it is further from cur.
+ */
 bool better_point(const point_t cur, const point_t a, const point_t b) {
     int t = turn(cur, a, b);
-    return t == LEFT || (t == COLLINEAR && consecutive_dot_prod(cur, a, b) > 0);
+    return t == LEFT || (t == COLLINEAR && fcmp(dist(cur, a) + dist(a, b), dist(cur, b)) == 0);
 }
 
 /**
@@ -86,7 +93,7 @@ void convex_hull(const points_t *pset, points_t *hull) {
        this function we trim the excess space. */
     hull->p = (point_t*)malloc(n * sizeof(*(hull->p))); assert(hull->p);
     
-    /* Identify the leftmost point p[leftmost] */
+    /* Identify the leftmost point leftmost in parallel */
     point_t leftmost = pset->p[0];
     #pragma omp parallel for default(none) shared(pset) firstprivate(n) reduction(leftmost_point:leftmost)
     for (int i = 1; i<n; i++) {
@@ -96,13 +103,12 @@ void convex_hull(const points_t *pset, points_t *hull) {
     }
     point_t cur = leftmost;
 
-    /* Retrieve number of threads to allocate enough memory
+    /* Retrieve number of threads and allocate enough memory
        for reduced values of individual threads */
     int num_threads;
     #pragma omp parallel
     #pragma omp master
     num_threads = omp_get_num_threads();
-
     point_t* results = (point_t*)malloc(num_threads * sizeof(point_t));
     assert(results);
     
@@ -162,7 +168,7 @@ void convex_hull(const points_t *pset, points_t *hull) {
             }
         } while (!points_eq(cur, leftmost));
 
-        /* If there were few points we didn't copy */
+        /* If there were few points we didn't copy, so we do not have to free this */
         if (copied) {
             free(p);
         }

@@ -59,6 +59,33 @@
 #include "mathutils.h"
 
 /**
+ * Get the clockwise angle between the line p0p1 and the vector p1p2 
+ *
+ *         .
+ *        . 
+ *       .--+ (this angle) 
+ *      .   |    
+ *     .    V
+ *    p1--------------p2
+ *    /
+ *   /
+ *  /
+ * p0
+ *
+ */
+double cw_angle(const point_t p0, const point_t p1, const point_t p2)
+{
+    const double x1 = p2.x - p1.x;
+    const double y1 = p2.y - p1.y;
+    const double x2 = p1.x - p0.x;
+    const double y2 = p1.y - p0.y;
+    const double dot = x1*x2 + y1*y2;
+    const double det = x1*y2 - y1*x2;
+    const double result = atan2(det, dot);
+    return (result >= 0 ? result : 2*M_PI + result);
+}
+
+/**
  * Compute the convex hull of all points in pset using the "Gift
  * Wrapping" algorithm. The vertices are stored in the hull data
  * structure, that does not need to be initialized by the caller.

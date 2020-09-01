@@ -58,44 +58,6 @@ int turn(const point_t p0, const point_t p1, const point_t p2) {
 }
 
 /**
- * Returns the dot product between the vectors p0--p1 and p1--p2
- */
-double consecutive_dot_prod(const point_t p0, const point_t p1, const point_t p2) {
-    const double x1 = p2.x - p1.x;
-    const double y1 = p2.y - p1.y;
-    const double x2 = p1.x - p0.x;
-    const double y2 = p1.y - p0.y;
-    return x1*x2 + y1*y2;
-}
-
-/**
- * Get the clockwise angle between the line p0p1 and the vector p1p2 
- *
- *         .
- *        . 
- *       .--+ (this angle) 
- *      .   |    
- *     .    V
- *    p1--------------p2
- *    /
- *   /
- *  /
- * p0
- *
- */
-double cw_angle(const point_t p0, const point_t p1, const point_t p2)
-{
-    const double x1 = p2.x - p1.x;
-    const double y1 = p2.y - p1.y;
-    const double x2 = p1.x - p0.x;
-    const double y2 = p1.y - p0.y;
-    const double dot = x1*x2 + y1*y2;
-    const double det = x1*y2 - y1*x2;
-    const double result = atan2(det, dot);
-    return (result >= 0 ? result : 2*M_PI + result);
-}
-
-/**
  * Compares two double values using a fixed similarity threshold.
  * Returns -1 if a < b, 0 if a == b and 1 if a > b.
  */
@@ -117,7 +79,9 @@ double dist(point_t p1, point_t p2) {
     return sqrt(squared_dist(p1, p2));
 }
 
-// Return true if the points are equal (compared usign fcmp).
+/**
+ * Return true if the points are equal (compared usign fcmp).
+ */
 bool points_eq(const point_t a, const point_t b) {
     return fcmp(a.x, b.x) == 0 && fcmp(a.y, b.y) == 0;
 }

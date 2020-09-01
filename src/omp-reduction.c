@@ -61,9 +61,14 @@
 
 point_t cur_point;
 
+/**
+ * Returns true if b is better than a, considering cur_point (global) as the
+ * last point in the convex hull. If the points are collinear,
+ * b is better than a if it is further from cur.
+ */
 bool better_point(const point_t a, const point_t b) {
     int t = turn(cur_point, a, b);
-    return t == LEFT || (t == COLLINEAR && consecutive_dot_prod(cur_point, a, b) >= 0);
+    return t == LEFT || (t == COLLINEAR && fcmp(dist(cur_point, a) + dist(a, b), dist(cur_point, b)) == 0);
 }
 
 #pragma omp declare reduction ( best_point : point_t : omp_out = better_point(omp_out, omp_in) ? omp_out : omp_in )\

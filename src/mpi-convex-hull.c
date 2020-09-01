@@ -1,11 +1,11 @@
 /****************************************************************************
  *
- * convex-hull.c
+ * mpi-convex-hull.c
  *
- * Compute the convex hull of a set of points in 2D
+ * Compute the convex hull of a set of points in 2D, parallelized using MPI
  *
  * Copyright (C) 2020 Giulio Carlassare <giulio.carlassare(at)studio.unibo.it>
- * Last updated on 2020-03-28
+ * Last updated on 2020-08-28
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,16 +23,17 @@
  ****************************************************************************
  *
  * Questo programma calcola l'inviluppo convesso (convex hull) di un
- * insieme di punti 2D letti da standard input usando l'algoritmo
- * "gift wrapping". Le coordinate dei vertici dell'inviluppo sono
- * stampate su standard output.  Per una descrizione completa del
- * problema si veda la specifica del progetto sul sito del corso:
+ * insieme di punti 2D letti da standard input con l'algoritmo "gift
+ * wrapping"; è stato usato MPI per parallelizzare l'esecuzione.
+ *   Le coordinate dei vertici dell'inviluppo con il minor numero di
+ * punti sono stampate su standard output.  Si veda la specifica del
+ * progetto sul sito del corso per una descrizione completa:
  *
  * http://moreno.marzolla.name/teaching/HPC/
  *
  * Per compilare:
  *
- * gcc -D_XOPEN_SOURCE=600 -std=c99 -Wall -Wpedantic -O2 convex-hull.c -o convex-hull -lm
+ * mpicc -D_XOPEN_SOURCE=600 -std=c99 -Wall -Wpedantic -O2 src/mpi-convex-hull.c -o build/mpi-convex-hull -lm
  *
  * (il flag -D_XOPEN_SOURCE=600 e' superfluo perche' viene settato
  * nell'header "hpc.h", ma definirlo tramite la riga di comando fa si'
@@ -41,7 +42,7 @@
  *
  * Per eseguire il programma si puo' usare la riga di comando:
  *
- * ./convex-hull < ace.in > ace.hull
+ * mpirun -n ... build/mpi-convex-hull < ace.in > ace.hull
  * 
  * Per visualizzare graficamente i punti e l'inviluppo calcolato è
  * possibile usare lo script di gnuplot (http://www.gnuplot.info/)
@@ -61,10 +62,11 @@
 
 MPI_Datatype point_mpi_t;
 
-void print_point(int rank, const char *text, const point_t p){
-    //printf("[%d] %s {%f, %f}\n", rank, text, p.x, p.y);
-}
-
+/**
+ * Returns true if b is better than a, considering cur as the
+ * last point in the convex hull. If the points are collinear,
+ * b is better than a if it is further from cur.
+ */
 bool better_point(const point_t cur, const point_t a, const point_t b) {
     int t = turn(cur, a, b);
     return t == LEFT || (t == COLLINEAR && fcmp(dist(cur, a) + dist(a, b), dist(cur, b)) == 0);
@@ -74,6 +76,8 @@ bool better_point(const point_t cur, const point_t a, const point_t b) {
  * Compute the convex hull of all points in pset using the "Gift
  * Wrapping" algorithm. The vertices are stored in the hull data
  * structure, that does not need to be initialized by the caller.
+ * pset only contains the partition use dby the current process.
+ * totalPoints is the total number of points from the input.
  */
 void convex_hull(const points_t *pset, points_t *hull, const int totalPoints, const int procCount, const int rank)
 {
@@ -102,12 +106,12 @@ void convex_hull(const points_t *pset, points_t *hull, const int totalPoints, co
             leftmost = partialResults[i];
         }
     }
-    print_point(rank, "leftmost", leftmost);
+
     point_t cur = leftmost;
     point_t next;
     
     do {
-        /* Add the current vertex to the hull */
+        // Add the current vertex to the hull
         assert(hull->n < totalPoints);
         hull->p[hull->n] = cur;
         hull->n++;
@@ -128,7 +132,6 @@ void convex_hull(const points_t *pset, points_t *hull, const int totalPoints, co
                 next = partialResults[j];
             }
         }
-        print_point(rank, "global next", next);
         assert(!points_eq(cur, next));
         cur = next;
     } while (!points_eq(leftmost, cur));
@@ -157,6 +160,7 @@ int main(int argc, char **argv )
     }
     tstart = hpc_gettime(); // Communication is part of the computation
 
+    // Subdivide the points between all the processes
     MPI_Bcast(&allPoints.n, 1, MPI_INT, 0, MPI_COMM_WORLD);
     int partSize = (allPoints.n + procCount - 1) / procCount;
     int* counts = (int*)malloc(sizeof(int) * procCount); assert(counts);
